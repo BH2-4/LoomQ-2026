@@ -12,8 +12,10 @@ from typing import Any, Dict, List, Tuple
 
 try:
     from .loomq import parse_qasm, sample_counts, transpile_to
+    from . import loomq_l2
 except ImportError:  # 平铺导入（如 python starter_kit/evaluator.py 直接运行）
     from loomq import parse_qasm, sample_counts, transpile_to
+    import loomq_l2
 
 SUPPORTED_TARGETS = ("spinq", "originq", "braket")
 
@@ -58,8 +60,8 @@ def run(qasm_str: str, target: str, shots: int) -> Dict[str, Any]:
 
 
 def agent_chat(prompt: str) -> str:
-    """Optional L2 entry point using the documented LOOMQ_LLM_* environment."""
-    raise NotImplementedError("L2 is optional; implement agent_chat(prompt) to enter")
+    """L2 entry point using the documented LOOMQ_LLM_* environment."""
+    return loomq_l2.agent_chat(prompt)
 
 
 def compile_hybrid(hybrid_qasm_str: str) -> Tuple[List[str], str]:
