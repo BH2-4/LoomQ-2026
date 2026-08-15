@@ -5,7 +5,7 @@
 
 from .ir import Circuit, Op, WHITELIST
 from .qasm2 import parse_qasm
-from .sim import sample_counts, simulate
+from .sim import probabilities, sample_counts, simulate
 from .codegen import transpile_to
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "WHITELIST",
     "parse_qasm",
     "simulate",
+    "probabilities",
     "sample_counts",
     "transpile_to",
 ]

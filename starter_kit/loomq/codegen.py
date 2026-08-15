@@ -113,7 +113,7 @@ def emit_braket(circuit: Circuit) -> str:
 # ---- originq：OriginIR ----
 
 _ORIGINQ_NAME = {
-    "h": "H", "x": "X", "s": "S", "sdg": "SDAG", "t": "T", "tdg": "TDG",
+    "h": "H", "x": "X", "s": "S", "sdg": "SDAG", "t": "T", "tdg": "TDAG",
     "ry": "RY", "rz": "RZ", "cx": "CNOT", "cu1": "CU1", "swap": "SWAP",
     "ccx": "TOFFOLI",
 }
