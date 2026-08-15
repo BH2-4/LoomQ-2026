@@ -162,6 +162,11 @@ class _Parser:
         if token is not None and re.fullmatch(r"r[1-9]", token):
             self.next()
             return RReg(int(token[1]))
+        if token == "(":
+            self.next()
+            value = self.expr()
+            self.expect(")")
+            return value
         if token == "c":
             self.next()
             self.expect("[")
