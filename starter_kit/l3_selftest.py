@@ -144,6 +144,9 @@ def run_property(seed: int = 20260816, cases: int = N_CASES) -> int:
                 break
     print("随机用例 %d 个，注入组合 %d 组，指令数峰值 %d（上限 1000 步）"
           % (cases, total_combos, max_instr))
+    if max_instr > 900:
+        print("步数余量断言失败：指令数峰值 %d 超过 900（1000 步上限余量不足）" % max_instr)
+        return 1
     if mismatches:
         case_no, mask, got, reference, source = mismatches[0]
         print("首个失配：case %d mask %d\n汇编终态 %s\n参考终态 %s\n用例：\n%s"
