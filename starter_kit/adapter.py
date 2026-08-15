@@ -12,10 +12,11 @@ from typing import Any, Dict, List, Tuple
 
 try:
     from .loomq import parse_qasm, sample_counts, transpile_to
-    from . import loomq_l2
+    from . import loomq_l2, loomq_l3
 except ImportError:  # 平铺导入（如 python starter_kit/evaluator.py 直接运行）
     from loomq import parse_qasm, sample_counts, transpile_to
     import loomq_l2
+    import loomq_l3
 
 SUPPORTED_TARGETS = ("spinq", "originq", "braket")
 
@@ -65,7 +66,5 @@ def agent_chat(prompt: str) -> str:
 
 
 def compile_hybrid(hybrid_qasm_str: str) -> Tuple[List[str], str]:
-    """Optional L3 entry point. Return quantum operations and RISC-V assembly."""
-    raise NotImplementedError(
-        "L3 is optional; implement compile_hybrid(hybrid_qasm_str) to enter"
-    )
+    """L3 entry point. Return quantum operations and RISC-V assembly."""
+    return loomq_l3.compile_hybrid(hybrid_qasm_str)
