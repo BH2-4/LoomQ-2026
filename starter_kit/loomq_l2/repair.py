@@ -38,7 +38,9 @@ def normalize_user_qasm(code: str, min_qubits: int = 1) -> Tuple[str, list]:
     out_lines = []
     max_qubit = -1
     saw_qreg = saw_creg = saw_measure = False
-    for raw in code.splitlines():
+    # 单行多语句（如 "H q[0]; CX q[0] q[1]"）先按分号断行
+    lines = code.replace(";", ";\n").splitlines()
+    for raw in lines:
         line = raw.strip()
         if not line or line.startswith("//"):
             continue

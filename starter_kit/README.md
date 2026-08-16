@@ -1,137 +1,103 @@
-# LoomQ Starter Kit v1.1.0
+# LoomQ · 说人话的量子算力入口（BH2-4 队提交）
 
-本工具包定义参赛提交协议，并提供公开自测。它不包含正式评分器、隐藏答案、Mock 得分路径或任何 Level 的参考解答。
+> 让一位从没写过量子代码的跨界创作者，5 分钟内靠智能体引导跑出人生第一个
+> 量子实验，并看懂它的原理。——这是本项目的唯一目标。
 
-## 提交结构
+## 一键开始
+
+```bash
+python3 starter_kit/chat.py --demo      # 零依赖离线体验（30 秒看到量子纠缠）
+python3 starter_kit/chat.py             # 自然语言对话（需 LOOMQ_LLM_* 环境变量）
+python3 starter_kit/chat.py --doctor    # 环境自检
+```
+
+零基础完整指南：[`GETTING_STARTED.md`](GETTING_STARTED.md)（含量子概念速览与错误自救表）。
+
+## 目标用户与使用场景
+
+**为谁而做**：没有任何量子背景的跨界创作者——设计师、文科研究者、产品经理、
+中学生。他们被"量子黑话"挡在门外：不懂 QASM、不懂门、不懂后端选型。
+
+**场景**：用户说「生成一个 3 比特 GHZ 态并测量」，助手生成电路 → 本地模拟
+4096 次验证正确性 → 画直方图 → 用「总是给出相同答案的骰子」这样的比喻解释
+纠缠。全过程用户不写一行代码、不查一个术语。
+
+**完整使用流程**：
+1. `--demo` 离线感受 → 2. 配置模型环境变量 → 3. 对话生成/纠错/选平台 →
+4. 自动验证 + 可视化解读 → 5.（进阶）把电路交给多平台中间层：
+   `adapter.transpile(qasm, "spinq"|"originq"|"braket")` 得到三厂商家原生 IR，
+   `adapter.run(...)` 本地无噪声模拟出 counts。
+
+## 架构（含 AI 辅助开发披露）
 
 ```text
 starter_kit/
-├── __init__.py
-├── VERSION
-├── CHANGELOG.md
-├── submission.yaml
-├── adapter.py
-├── llm_client.py
-├── l2_policy.json
-├── evaluator.py
-├── prepare_submission.py
-├── riscv_emulator.py
-├── backend_capabilities.md
-├── backend_capabilities.json
-├── QUANTUM_101.md
-├── gate_identities.md
-├── target_ir_contract.md
-├── requirements.txt
-├── Dockerfile
-├── evidence/
-│   ├── README.md
-│   └── files/                # 可选附件
-├── circuits/
-│   ├── bell.qasm
-│   └── ghz3.qasm
-└── examples/
+├── adapter.py          # 提交契约入口：transpile/run/agent_chat/compile_hybrid
+├── loomq/              # L1 中间层：QASM2 解析 → 统一 IR → 三后端 codegen
+│   ├── qasm2.py        #   OpenQASM 2.0 解析器（白名单门集+自定义门展开）
+│   ├── sim.py          #   无噪声状态向量模拟器（纯标准库，离线可用）
+│   └── codegen.py      #   spinq(QASM2)/braket(QASM3)/originq(OriginIR) 生成
+├── loomq_l2/           # L2 智能体：LLM 只做意图理解（JSON），电路确定性生成
+│   ├── templates.py    #   Bell/GHZ/均匀叠加/基矢/W态 模板库（含旋转级联构造）
+│   ├── validate.py     #   本地验证器：解析+白名单+精确分布对拍
+│   ├── selector.py     #   选后端：backend_capabilities 确定性过滤
+│   └── repair.py       #   用户坏代码规范化（补声明/修门名/补测量）
+├── loomq_l3/           # L3 混合编译：classical 文法→AST→官方 7 指令汇编
+├── riscv_emulator_qext.py  # Bonus：官方模拟器扩展 fork（QH/QX/QCX/QMS 量子指令）
+├── chat.py             # 用户入口 CLI：对话+自动运行+ASCII 直方图+通俗解读
+├── selfcheck.py        # 自建回归：官方 8 电路全集+随机电路，119 项
+├── l2_selftest.py      # L2 变体自测：mock/live 双模式 25 例
+└── l3_selftest.py      # L3 穷举属性测试 + Bonus 端到端
 ```
 
-在正式 fork 中，本 `starter_kit/` 目录就是构建与评测根目录，必须保留并填写 `submission.yaml`，同时提供 `adapter.py`。非 Python 项目可以在 `adapter.py` 中通过 `subprocess` 调用自己的 CLI 或二进制。
+**关键设计**：L2 中 LLM 永远不直接写 QASM——它只把自然语言映射为结构化意图
+（模板+参数），电路由模板库确定性生成并经本地模拟器验证，失败才把机器可读
+错误回喂修复。这保证了评测隐藏措辞变体下的正确率（QUASAR 论文验证的路线，
+arXiv:2510.00967）。L1/L3 全部确定性、零第三方依赖（评测环境默认禁网，本地
+模拟器即唯一正解）。
 
-目录名使用下划线，因此从 fork 根目录编写测试时可以按标准 Python 包导入：
+**AI 辅助开发披露**（按赛题反作弊条款 4）：本项目代码由 AI 辅助编写、人工
+审查验收；上表即各模块工作原理说明。所有提交物均通过公开评测器、自建回归
+（119+25+200×穷举）与官方契约测试验证；无任何针对公开样例的特判分支。
 
-```python
-from starter_kit import adapter
-```
-
-## 环境
-
-公开 evaluator 只使用 Python 标准库，无需安装依赖。推荐 Python 3.10，与官方基础镜像一致（spinqit 最高只提供 cp310 wheel）：
+## 质量验证命令
 
 ```bash
-python3 evaluator.py --level l1 --target spinq,originq --json-out report.json
+python3 starter_kit/evaluator.py --target spinq,originq,braket   # 公开契约（declared: L1+L2+L3）
+python3 starter_kit/selfcheck.py          # 119 项：8 电路全集+随机回环回归
+python3 starter_kit/l2_selftest.py --mock # L2 快速回归（--live 真模型 25 例）
+python3 starter_kit/l3_selftest.py        # L3：200 用例×全注入组合穷举（--bonus 为 Bonus 闭环）
+python3 -m unittest discover -s tests     # 官方契约测试
 ```
 
-参赛项目使用第三方 SDK 时，必须把依赖写入 `requirements.txt` 并精确锁定版本，例如 `package==1.2.3`。不要提交 `package>=1.2`，正式评测不会替参赛队选择依赖版本。
+## 人工评分材料索引
 
-也可以先验证基础容器：
+- L1 真机 + L3 Bonus：[`evidence/README.md`](evidence/README.md)（双平台 job 可溯源）
+- 量子 RISC-V 扩展规格：[`l3_bonus_spec.md`](l3_bonus_spec.md)
+- 新手引导与可视化：[`GETTING_STARTED.md`](GETTING_STARTED.md) + `chat.py --demo`
 
-```bash
-docker build -t loomq-submission .
-docker run --rm loomq-submission
-```
+---
 
-## Adapter 契约
+## 官方提交契约要点（保留自 Starter Kit v1.1.0）
 
-L1 必须实现：
+`starter_kit/` 是构建与评测根目录；必需文件 `submission.yaml`/`adapter.py`/
+`Dockerfile`/`README.md` 齐备。依赖零第三方（`requirements.txt` 维持基线），
+Python 3.10，与官方镜像一致。
 
-```python
-def transpile(qasm_str: str, target: str) -> str: ...
-def run(qasm_str: str, target: str, shots: int) -> dict: ...
-```
+**Adapter 契约**（`adapter.py`）：
+- L1：`transpile(qasm_str, target) -> str`、`run(qasm_str, target, shots) -> dict`
+- L2：`agent_chat(prompt) -> str`（读 `LOOMQ_LLM_*` 环境变量）
+- L3：`compile_hybrid(hybrid_qasm_str) -> (quantum_ops, assembly)`
 
-`transpile()` 的三个目标格式不是任意字符串，规范子集见 `target_ir_contract.md`。正式评测会由组织方解析并模拟返回的目标 IR。
+**公开自测**：`python3 evaluator.py --json-out report.json`，退出码 0 为全部
+通过。正式评测使用组织方私有 runner、随机 case 与私有期望值。
 
-L2、L3 为可选接口：
+**L2 统一模型**：正式评测为 DeepSeek `deepseek-v4-flash`（组委会注入）；
+本地调试设置 `LOOMQ_LLM_BASE_URL/_API_KEY/_MODEL/_TIMEOUT_SECONDS`。
+实现不含任何硬编码 URL/Key/模型名；缺配置时报错只列变量名。
 
-```python
-def agent_chat(prompt: str) -> str: ...
-def compile_hybrid(hybrid_qasm_str: str) -> tuple[list, str]: ...
-```
+**最终提交**：截止 2026-08-25 12:00 UTC+8。fork 根目录运行
+`python3 starter_kit/prepare_submission.py --team-id <GITHUB_USERNAME>`，
+随后在上游创建最终提交 Issue；`submission:accepted` 回执才算成功。
 
-未参赛的 Level 保持 `NotImplementedError`，并在 `submission.yaml` 中标为 `false`。Starter Kit 原样运行会失败，这是预期行为，也确保原样提交不会获得功能分。
-
-## 公开自测
-
-```bash
-# 默认只测试 submission.yaml 中声明为 true 的 Level
-python3 evaluator.py --json-out report.json
-
-# 单独测试
-python3 evaluator.py --level l1 --target spinq,originq,braket
-python3 evaluator.py --level l2
-python3 evaluator.py --level l3
-```
-
-退出码：全部公开测试通过为 `0`，存在失败为 `1`。`report.json` 只表示公开契约自测结果，不是正式分数。
-
-正式评测由组织方在隔离环境运行：每个 case 使用独立进程、私有随机种子和私有期望值；提交进程不会获得理想分布文件。组织方还会分别验证目标原生 IR、真机证据、架构与交互体验。
-
-## 最终提交
-
-截止时间为 **2026-08-25 12:00 UTC+8**。先在 fork 根目录运行：
-
-```bash
-python3 starter_kit/prepare_submission.py --team-id <GITHUB_USERNAME>
-```
-
-当前不使用预登记队伍名单。每队指定一个 GitHub 提交账号，该账号的用户名就是 Team ID；fork 必须归该账号所有，并由同一账号创建最终提交 Issue。其他成员仍可作为协作者参与开发。预检通过后，在上游 `QAIDAO/LoomQ-2026` 的“LoomQ 最终提交” Issue Form 中填写输出的 fork 地址和 40 位 commit SHA。出现 `submission:accepted` 标签与归档哈希回执后才算提交成功。更新代码后必须新建 Issue，截止前最后一次有效提交生效。
-
-如申报 L1 真机、L2 交互体验、工程与产品化或 Bonus，只需填写 [`evidence/README.md`](evidence/README.md)。截图、原始结果或图表可以统一放入 `evidence/files/`。证据必须随最终 commit 归档；未提交某项证据只影响对应人工分，不影响自动评分。
-
-## L2 统一模型与环境变量
-
-正式 L2 客观评测统一使用 DeepSeek `deepseek-v4-flash`，最终答案仍由确定性的官方测试判定，不使用 LLM 充当裁判。组委会在赛前**不提供 API 地址、API Key、代理或调用额度**。选手本地可使用自己的 DeepSeek API，也可使用其他 OpenAI-compatible 服务调试；组委会只保证正式 DeepSeek 环境下的结果。
-
-`agent_chat(prompt: str) -> str` 接口不变。实现不得硬编码 URL、Key 或模型名，必须读取：
-
-| 环境变量 | 含义 |
-|---|---|
-| `LOOMQ_LLM_BASE_URL` | OpenAI-compatible API 根地址 |
-| `LOOMQ_LLM_API_KEY` | 当前运行凭证 |
-| `LOOMQ_LLM_MODEL` | 当前模型；正式评测为 `deepseek-v4-flash` |
-| `LOOMQ_LLM_TIMEOUT_SECONDS` | 单次请求超时 |
-
-正式限制为每个 case 时限 120 秒；两组固定私有种子共 12 个 case。机器可读版本见 `l2_policy.json`。
-
-`llm_client.py` 是可选的无依赖传输示例，不包含 Prompt、Agent 策略或参考答案。使用自己的 DeepSeek Key 调试时可设置：
-
-```bash
-export LOOMQ_LLM_BASE_URL=https://api.deepseek.com
-export LOOMQ_LLM_API_KEY=<YOUR_OWN_KEY>
-export LOOMQ_LLM_MODEL=deepseek-v4-flash
-export LOOMQ_LLM_TIMEOUT_SECONDS=120
-python3 evaluator.py --level l2
-```
-
-缺少配置时应立即失败，错误信息不得包含任何 Key。正式评测时，组委会将统一注入 DeepSeek 模型服务及调用预算；评测环境不保证能够访问其他外部网络服务。若参加 L2，请把 `submission.yaml` 中的 `levels.l2` 与 `network.required_for_l2` 同时改为 `true`；`allowed_hosts` 不用于申请正式评测中的任意公网访问。
-
-## 版本政策
-
-合同版本为 `1.0`。开赛后，`1.x` 只允许增加向后兼容的文档、诊断信息和公开测试，不改变已有接口语义；破坏性修改必须发布新的合同版本并为旧版保留评测通道。
+**版本政策**：合同版本 1.0；`1.x` 向后兼容。
