@@ -317,23 +317,45 @@ class _Parser:
             raise SyntaxError("门 %s 需要 %d 个参数，得到 %d"
                               % (name, n_params, len(raw_params)))
         params = tuple(self._eval(tokens, {}) for tokens in raw_params)
-        qubits = self._resolve_builtin_refs(name, refs, n_qubits)
-        self.circuit.ops.append(Op(name, params, qubits))
+        for qubits in self._resolve_builtin_refs(name, refs, n_qubits):
+            self.circuit.ops.append(Op(name, params, tuple(qubits)))
 
-    def _resolve_builtin_refs(self, name: str, refs, n_qubits: int) -> Tuple[int, ...]:
+    def _resolve_builtin_refs(self, name: str, refs, n_qubits: int) -> List[List[int]]:
+        """解析门实参，支持整寄存器广播，返回"每次施加的比特列表"。
+
+        - n_qubits == 1 且实参为寄存器：逐位展开为多次施加（如 `x q;`）
+        - n_qubits > 1 且全部实参为等长寄存器：按位配对（如 `cx q, r;`）
+        - 显式下标：常规单次施加
+        """
+        broadcast = [idx is None for _, idx in refs]
+        if any(broadcast):
+            if any(idx is not None for _, idx in refs):
+                raise SyntaxError("门 %s 的广播实参不能与位下标混用" % name)
+            if n_qubits == 1:
+                rname = refs[0][0]
+                if rname not in self.qregs:
+                    raise SyntaxError("未知量子寄存器 %r" % rname)
+                return [[self.qregs[rname] + i]
+                        for i in range(self.qsizes[rname])]
+            if len(refs) != n_qubits:
+                raise SyntaxError("门 %s 广播需要 %d 个等长寄存器，得到 %d"
+                                  % (name, n_qubits, len(refs)))
+            for rname, _ in refs:
+                if rname not in self.qregs:
+                    raise SyntaxError("未知量子寄存器 %r" % rname)
+            size = self.qsizes[refs[0][0]]
+            if any(self.qsizes[r] != size for r, _ in refs):
+                raise SyntaxError("门 %s 广播要求各寄存器等长" % name)
+            return [[self.qregs[r] + k for r, _ in refs] for k in range(size)]
         resolved: List[int] = []
         for rname, ridx in refs:
             if rname not in self.qregs:
                 raise SyntaxError("未知量子寄存器 %r" % rname)
-            if ridx is None:  # 整寄存器广播
-                resolved.extend(self.qregs[rname] + i
-                                for i in range(self.qsizes[rname]))
-            else:
-                resolved.append(self.qregs[rname] + ridx)
+            resolved.append(self.qregs[rname] + ridx)
         if len(resolved) != n_qubits:
             raise SyntaxError("门 %s 需要 %d 个量子比特，得到 %d"
                               % (name, n_qubits, len(resolved)))
-        return tuple(resolved)
+        return [resolved]
 
     def _expand(self, name: str, param_values: List[float],
                 arg_map: Dict[str, int], depth: int) -> None:

@@ -70,6 +70,37 @@ def _rewrite_op(op: Op) -> List[Op]:
             Op("cu1", (-theta / 2,), (c, t)),
             Op("rz", (theta / 2,), (t,)),
         ]
+    if name in ("u2", "u3", "u"):
+        # u3(θ,φ,λ) ≡ RZ(φ)·RY(θ)·RZ(λ)（全局相位无关）；u2(φ,λ) = u3(π/2,φ,λ)
+        theta = params[0] if len(params) == 3 else _pi / 2
+        phi = params[1] if len(params) >= 2 else 0.0
+        lam = params[2] if len(params) == 3 else params[0] if name == "u2" else 0.0
+        if name == "u2":
+            phi, lam = params[0], params[1]
+        return [Op("rz", (phi,), qubits), Op("ry", (theta,), qubits),
+                Op("rz", (lam,), qubits)]
+    if name == "cu3":
+        # 受控 u3：C-RZ(λ)、C-RY(θ)、C-RZ(φ) 逐块分解（cu1 为 C-RZ 的白名单形式）
+        c, t = qubits
+        theta, phi, lam = params
+        return [
+            Op("rz", (lam / 2,), (t,)),
+            Op("cx", (), (c, t)),
+            Op("rz", (-lam / 2,), (t,)),
+            Op("cx", (), (c, t)),
+            Op("ry", (theta / 2,), (t,)),
+            Op("cx", (), (c, t)),
+            Op("ry", (-theta / 2,), (t,)),
+            Op("cx", (), (c, t)),
+            Op("rz", (phi / 2,), (t,)),
+            Op("cx", (), (c, t)),
+            Op("rz", (-phi / 2,), (t,)),
+            Op("cx", (), (c, t)),
+        ]
+    if name == "ch":
+        # H ≡ u3(π/2, 0, π)（全局相位无关），复用 cu3 分解
+        c, t = qubits
+        return _rewrite_op(Op("cu3", (_pi / 2, 0.0, _pi), (c, t)))
     raise ValueError("暂无 %r 到白名单门集的改写规则" % name)
 
 
