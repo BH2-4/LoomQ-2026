@@ -6,6 +6,10 @@
 > （含一键运行、架构说明与质量验证命令）；零基础上手见
 > [`starter_kit/GETTING_STARTED.md`](starter_kit/GETTING_STARTED.md)；
 > 真机证据的采集与复现工具在 [`tools/qpu/`](tools/qpu/README.md)。
+>
+> **⚠️ 安全红线（全员必读）**：本仓库是**公开**仓库且提交将进入评测归档——
+> 任何 API Key / Token / 私钥**绝不入库**（包括代码、文档、注释、示例、截图）。
+> 凭证只走环境变量；详见 [`starter_kit/README.md` 的密钥管理章节](starter_kit/README.md#安全红线密钥管理)。
 > 以下为上游赛题发布包原始内容。
 
 ## 包内容
