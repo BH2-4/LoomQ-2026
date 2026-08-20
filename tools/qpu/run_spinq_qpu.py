@@ -26,13 +26,15 @@ from starter_kit.loomq import parse_qasm, transpile_to  # noqa: E402
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="SpinQ cloud QPU evidence runner")
-    ap.add_argument("--qasm", required=True, help="输入 QASM 文件路径")
+    ap.add_argument("--qasm", default=None, help="输入 QASM 文件路径")
     ap.add_argument("--shots", type=int, default=1000)
     ap.add_argument("--platform", default="superconductor_vp",
                     help="平台代码；默认超导真机。传 --list 只列平台不提交")
     ap.add_argument("--list", action="store_true", help="仅列出可用平台")
     ap.add_argument("--task-name", default="LoomQ-evidence")
     args = ap.parse_args()
+    if not args.qasm and not args.list:
+        ap.error("--qasm 是必需的（除非使用 --list）")
 
     username = os.environ.get("SPINQ_USERNAME", "")
     keyfile = os.environ.get("SPINQ_KEYFILE", "")
@@ -47,17 +49,22 @@ def main() -> int:
     backend = get_spinq_cloud(username, keyfile)
     print("可用平台：")
     for p in backend.platforms:
-        print("  %-18s %-14s max_qubits=%s simu=%s" %
-              (p.code, p.name, p.max_bitnum, p.simu))
+        print("  %-18s %-14s max_qubits=%s simu=%s online=%d" %
+              (p.code, p.name, p.max_bitnum, p.simu, p.machine_count))
     if args.list:
         return 0
 
     qasm_text = Path(args.qasm).read_text(encoding="utf-8")
-    normalized = transpile_to(parse_qasm(qasm_text), "spinq")
-    n_qubits = parse_qasm(qasm_text).n_qubits
+    circuit = parse_qasm(qasm_text)
+    n_qubits = circuit.n_qubits
+    normalized = transpile_to(circuit, "spinq")
+    # SpinQ 云端不接受显式测量语句（自动全测量），提交版剥掉 measure 行
+    cloud_src = "\n".join(
+        line for line in normalized.splitlines() if not line.startswith("measure")
+    ) + "\n"
     with tempfile.NamedTemporaryFile("w", suffix=".qasm", delete=False,
                                      encoding="utf-8") as handle:
-        handle.write(normalized)
+        handle.write(cloud_src)
         tmp_path = handle.name
     try:
         ir = QASMCompiler().compile(tmp_path, 1)
@@ -71,7 +78,6 @@ def main() -> int:
     config.configure_platform(args.platform)
     config.configure_shots(args.shots)
     config.configure_task(args.task_name, "LoomQ-2026 L1 real-machine evidence")
-    config.configure_measured_qubits(range(n_qubits))
     submitted_at = datetime.now(timezone.utc).isoformat()
     print("提交中… shots=%d" % args.shots)
     result = backend.execute(ir, config)
@@ -88,7 +94,8 @@ def main() -> int:
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "shots": args.shots,
         "qasm_source": str(Path(args.qasm).resolve().relative_to(REPO)),
-        "qasm_submitted": normalized,
+        "qasm_contract_output": normalized,
+        "qasm_cloud_submitted": cloud_src,
         "counts": counts,
         "probabilities": result.probabilities,
         "raw_task_code": result.task_code,

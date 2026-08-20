@@ -2,6 +2,12 @@
 
 > SheNicest 2026 夏季千人烈变黑客松 · 正式赛题（选手分发版）
 
+> **📍 本仓库为 BH2-4 队的参赛 fork。** 评测与人工评分入口在 **[`starter_kit/`](starter_kit/README.md)**
+> （含一键运行、架构说明与质量验证命令）；零基础上手见
+> [`starter_kit/GETTING_STARTED.md`](starter_kit/GETTING_STARTED.md)；
+> 真机证据的采集与复现工具在 [`tools/qpu/`](tools/qpu/README.md)。
+> 以下为上游赛题发布包原始内容。
+
 ## 包内容
 
 | 文件 / 目录 | 说明 |

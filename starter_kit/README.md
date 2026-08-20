@@ -70,9 +70,13 @@ python3 starter_kit/l3_selftest.py        # L3：200 用例×全注入组合穷�
 python3 -m unittest discover -s tests     # 官方契约测试
 ```
 
+以上全部通过，且已在 **Python 3.10**（与正式评测镜像一致的版本）下复验。
+容器基线：`docker build -t loomq-submission starter_kit && docker run --rm loomq-submission`
+离线即可验证 L1（三目标）+ L3；L2 需注入 `LOOMQ_LLM_*` 环境变量（正式评测由组委会注入）。
+
 ## 人工评分材料索引
 
-- L1 真机 + L3 Bonus：[`evidence/README.md`](evidence/README.md)（双平台 job 可溯源）
+- L1 真机 + L3 Bonus：[`evidence/README.md`](evidence/README.md)（双平台 job 可溯源；采集与复现工具见 [`tools/qpu/README.md`](../tools/qpu/README.md)，凭证走环境变量、不入库）
 - 量子 RISC-V 扩展规格：[`l3_bonus_spec.md`](l3_bonus_spec.md)
 - 新手引导与可视化：[`GETTING_STARTED.md`](GETTING_STARTED.md) + `chat.py --demo`
 
